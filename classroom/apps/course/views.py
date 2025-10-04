@@ -7,9 +7,9 @@ from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .serializers import CoursePreviewSerializer, CourseProfileSerializer
+from .serializers import CoursePreviewSerializer, CourseProfileSerializer, CourseMemberSerializer
 from .models import Courses
-
+from django.core.cache import cache
 
 
 
@@ -24,7 +24,8 @@ class CourseViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'get_own_courses']:
             return CoursePreviewSerializer
         return CourseProfileSerializer
-
+    
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
@@ -47,22 +48,70 @@ class CourseViewSet(viewsets.ModelViewSet):
                 Q(teacher_invites__teacher=user) & Q(teacher_invites__status='accepted') | Q(creator=user),
             )
         return queryset.none()
-
+    
+    
     @action(detail=False, methods=["get"])
     def get_own_courses(self, request):
-        return Response({
+        cache_data = cache.get(f'course_{request.user.id}')
+
+        if cache_data:
+            return Response(cache_data)
+        
+        response = {
             "courses": CoursePreviewSerializer(self.get_queryset(), many=True).data
-        })
+        }
+
+        cache.set(f'course_{request.user.id}', response, 900)
+        return Response(response)
+
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         if not instance.has_user_on_course(request.user):
             raise PermissionDenied()
+        
+        cache_data = cache.get(f'course_{instance.course_id_base}')
+        if cache_data:
+            return Response(cache_data)
 
         serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        response = serializer.data
+
+        cache.set(f'course_{instance.course_id_base}', response, 900)
+        return Response(response)
+    
 
     def perform_destroy(self, instance):
         if not instance.can_user_delete(self.request.user):
             raise PermissionDenied()
         super().perform_destroy(instance)
+    
+    #Получение участников курса. Для учителей/админов реализована функция фильтрации
+    @action(detail=True, methods=["get"])
+    def members(self, request, course_id_base = None):
+        course = self.get_object()
+        students = course.students.all()
+
+        if request.user.is_teacher or request.user.is_admin:
+            search = request.GET.get('search', '')
+            if search:
+                students = students.filter(
+                    Q(first_name__icontains=search) | 
+                    Q(last_name__icontains=search) |
+                    Q(second_name__icontains=search)
+                )
+        teachers = course.teachers.exclude(role_id = 2)
+        return Response({
+            "students": CourseMemberSerializer(students, many = True).data,
+            "teachers": CourseMemberSerializer(teachers, many = True).data
+        })
+    
+    #Удаление участников курса
+    @action(detail=True, methods=['delete'],  url_path='remove_member/(?P<student_id>[^/.]+)')
+    def remove_member(self, request, course_id_base=None, student_id=None):
+        if not request.user.is_teacher and not request.user.is_admin:
+            raise PermissionDenied()
+        
+        course = self.get_object()
+        course.students.remove(student_id)
+        return Response(status=204)

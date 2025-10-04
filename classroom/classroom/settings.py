@@ -37,13 +37,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework.authtoken',
 ]
 
 # Внешние приложения
 INSTALLED_APPS += [
     'rest_framework',
     'debug_toolbar',
-    'django_filters'
+    'django_filters',
+    'drf_spectacular',
 ]
 
 # Наши приложения
@@ -63,6 +65,29 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
+
+#Настройка кэша для Redis
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/0",
+    }
+}
+
+import redis
+#Проерка подключения Redis
+try:
+    MY_REDIS = redis.Redis(
+        host = 'localhost',
+        port = 6379,
+        db = 0
+    )
+    MY_REDIS.ping()
+    print('REDIS CONNECTION SUCCESSFUL!')
+
+except redis.exceptions.RedisError as e:
+    print(f"REDIS CONNECTION FAILED: {e}")
+
 
 ROOT_URLCONF = 'classroom.urls'
 
@@ -148,3 +173,37 @@ MEDIA_ROOT = BASE_DIR / MEDIA_URL
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
+
+# REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# JWT
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+}
+
+# Swagger
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Classroom API',
+    'DESCRIPTION': 'API for classroom management system',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+    },
+}

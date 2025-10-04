@@ -1,13 +1,12 @@
 from django.contrib.auth import authenticate
 from rest_framework.serializers import Serializer, ModelSerializer
-from rest_framework.fields import SerializerMethodField, EmailField, CharField
+from rest_framework.fields import SerializerMethodField, EmailField, CharField, ImageField
 from rest_framework.exceptions import ValidationError
 
 from .models import CustomUser
 
 
 class UserProfileSerializer(ModelSerializer):
-
     role_name = SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
@@ -27,6 +26,13 @@ class UserProfileSerializer(ModelSerializer):
     def get_role_name(self, model_obj):
         return model_obj.role_name
 
+#Отдельный сериализатор для обновления аватарки
+class UserAvatarSerializer(ModelSerializer):
+    avatar = ImageField(required=False)
+    class Meta:
+        model = CustomUser
+        fields = ("avatar",)
+      
 
 class LoginUserSerializer(Serializer):
 
@@ -54,3 +60,27 @@ class LoginUserSerializer(Serializer):
             )
         attrs['user'] = user
         return attrs
+
+# сериализатор для CRUD
+class CustomUserSerializer(UserProfileSerializer):
+    password = CharField(write_only=True, required=False)
+
+    class Meta(UserProfileSerializer.Meta):
+        fields = UserProfileSerializer.Meta.fields + ('password',)
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        email = validated_data.pop('email', None)
+
+        if not password:
+            raise ValidationError("Password is required for creating a user")
+        if not email:
+            raise ValidationError("Email is required for creating a user")
+
+        return CustomUser.objects.create_user(email=email, password=password, **validated_data)
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+        return super().update(instance, validated_data)

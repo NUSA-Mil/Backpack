@@ -4,6 +4,7 @@ from rest_framework.fields import SerializerMethodField, ReadOnlyField
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from .models import Courses, CourseTeachersThrough
+from ..authorization.models import CustomUser
 from ..authorization.serializers import UserProfileSerializer
 
 
@@ -75,4 +76,19 @@ class CourseProfileSerializer(CreatorSerializerMixin, ModelSerializer):
         if instance.creator_id != self.context["request"].user.pk:
             raise PermissionDenied()
         return super().update(instance, validated_data)
+
+#Сериализатор для отображения участников курса
+class CourseMemberSerializer(ModelSerializer):
+    full_name = SerializerMethodField()
+    class Meta:
+        model = CustomUser
+        fields = ("id", "full_name", "avatar")
+
+    def get_full_name(self, model_obj):
+        fullname = [model_obj.second_name, model_obj.first_name, model_obj.last_name]
+        return " ".join(part for part in fullname if part)
+
+
+
+
 

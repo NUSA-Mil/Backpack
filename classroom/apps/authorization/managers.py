@@ -41,13 +41,13 @@ class CustomUserManager(BaseUserManager):
     acreate_user.alters_data = True
 
     def create_superuser(self, email, password=None, **extra_fields):
-
+        # ИСПРАВЛЕНО: используем role_id вместо role
         admin_role_value = self.model.Role.ADMIN.value
-        extra_fields.setdefault("role", admin_role_value)
+        extra_fields.setdefault("role_id", admin_role_value)  # ИСПРАВЛЕНО: role_id вместо role
         extra_fields.setdefault("is_verified", True)
 
-        if extra_fields.get("role", None) != admin_role_value:
-            raise ValueError("Superuser must have role=ADMIN.")
+        if extra_fields.get("role_id", None) != admin_role_value:  # ИСПРАВЛЕНО: role_id
+            raise ValueError("Superuser must have role_id=ADMIN.")
         if extra_fields.get("is_verified", None) is not True:
             raise ValueError("Superuser must have is_verified=True.")
 
@@ -59,11 +59,11 @@ class CustomUserManager(BaseUserManager):
             self, email, password=None, **extra_fields
     ):
         admin_role_value = self.model.Role.ADMIN.value
-        extra_fields.setdefault("role", admin_role_value)
+        extra_fields.setdefault("role_id", admin_role_value)  # ИСПРАВЛЕНО: role_id
         extra_fields.setdefault("is_verified", True)
 
-        if extra_fields.get("role", None) != admin_role_value:
-            raise ValueError("Superuser must have role=ADMIN.")
+        if extra_fields.get("role_id", None) != admin_role_value:  # ИСПРАВЛЕНО: role_id
+            raise ValueError("Superuser must have role_id=ADMIN.")
         if extra_fields.get("is_verified", None) is not True:
             raise ValueError("Superuser must have is_verified=True.")
 

@@ -1,14 +1,11 @@
 import os
 from functools import partial
-
-
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.utils import generate_random_string, file_upload_path
-from classroom.settings import AUTH_USER_MODEL
-
 
 class Courses(models.Model):
 
@@ -43,7 +40,7 @@ class Courses(models.Model):
     )
 
     creator = models.ForeignKey(
-        AUTH_USER_MODEL,
+        settings.AUTH_USER_MODEL,
         related_name="own_courses",
         verbose_name=_("creator"),
         on_delete=models.CASCADE
@@ -56,16 +53,16 @@ class Courses(models.Model):
     is_archive = models.BooleanField(_("archive"), default=False)
 
     teachers = models.ManyToManyField(
-        AUTH_USER_MODEL,
+        settings.AUTH_USER_MODEL,
         through="CourseTeachersThrough",
         verbose_name=_("teachers"),
         related_name="teaching_courses"
     )
     students = models.ManyToManyField(
-        AUTH_USER_MODEL,
+        settings.AUTH_USER_MODEL,
         through="CourseStudentsThrough",
         verbose_name=_("students"),
-        related_name="enrolled_courses"
+        related_name="student_courses"
     )
 
     def has_user_on_course(self, user):
@@ -154,7 +151,7 @@ class CourseTeachersThrough(ActionMixin, models.Model):
     Status = Status
 
     teacher = models.ForeignKey(
-        AUTH_USER_MODEL,
+        settings.AUTH_USER_MODEL,
         related_name="teacher_course_invites",
         verbose_name=_("teacher"),
         on_delete=models.CASCADE
@@ -177,7 +174,7 @@ class CourseStudentsThrough(ActionMixin, models.Model):
     Status = Status
 
     student = models.ForeignKey(
-        AUTH_USER_MODEL,
+        settings.AUTH_USER_MODEL,
         related_name="course_invites",
         verbose_name=_("student"),
         on_delete=models.CASCADE
